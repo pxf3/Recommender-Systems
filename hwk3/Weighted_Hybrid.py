@@ -2,6 +2,9 @@
 # INFO 4871/5871, Spring 2019
 # Robin Burke
 # University of Colorado, Boulder
+import pandas as pd
+import numpy as np
+from collections.abc import Iterable, Sequence
 
 import logging
 from lenskit.algorithms import Predictor
@@ -33,6 +36,14 @@ class WeightedHybrid(Predictor):
             weights: weights for each component to combine predictions.
         """
         # HWK 3: Code here
+        # for algo in algorithms:
+        #     self.algorithms.append(algo)
+        self.algorithms = algorithms
+
+        self.weights = []
+        w_sum = sum(weights)
+        for i in range(0, len(weights)):
+            self.weights.append(weights[i]/w_sum)
 
         self.selector = UnratedItemCandidateSelector()
 
@@ -44,6 +55,9 @@ class WeightedHybrid(Predictor):
     def fit(self, ratings, *args, **kwargs):
 
         # HWK 3: Code here
+        for algo in self.algorithms:
+            # print(algo)
+            algo.fit(ratings, *args, **kwargs)
 
         return self
 
@@ -55,6 +69,16 @@ class WeightedHybrid(Predictor):
     def predict_for_user(self, user, items, ratings=None):
         preds = None
         # HWK 3: Code here
+        index = 0
+        for algo in self.algorithms:
+            # print(algo)
+            aps = algo.predict_for_user(user, items, ratings=ratings)
+            aps = aps[aps.notna()]
+            if preds is None:
+                preds = aps * self.weights[index]
+            else:
+                preds = preds+aps * self.weights[index]
+            index = index+1
 
         return preds
 

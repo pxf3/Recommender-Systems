@@ -5,13 +5,13 @@
 
 from lenskit.algorithms import Recommender
 from lenskit.algorithms.basic import UnratedItemCandidateSelector
+from collections import defaultdict
 
 import numpy as np
 import pandas as pd
 
 
 class NaiveBayesRecommender(Recommender):
-
     _count_tables = {}
     _item_features = None
     _nb_table = None
@@ -26,12 +26,21 @@ class NaiveBayesRecommender(Recommender):
     def fit(self, ratings, *args, **kwargs):
         # Must fit the selector
         self.selector.fit(ratings)
-
         self._nb_table.reset()
-        # For each rating
-            # Get associated item features
-            # Update NBTable
 
+        self._item_features.columns = ['item', 'feature']
+        # For each rating
+        for indexR, rowR in ratings.iterrows():
+            user = rowR['user']
+            item = rowR['item']
+            rating = rowR['item']
+            print("processing: ", user)
+            # Get associated item features
+            for indexF, rowF in self._item_features.loc[self._item_features['item'] == item].iterrows():
+                feature = rowF['feature']
+                print("          processing: ", user, ", ", rating, ", ", feature)
+                # Update NBTable
+                self._nb_table.process_rating(user, rating, feature)
 
     # TODO: HOMEWORK 4
     # Should return ordered data frame with items and score
@@ -47,6 +56,7 @@ class NaiveBayesRecommender(Recommender):
 
         # for each candidate
         for candidate in candidates:
+            return
             # Score the candidate for the user
 
             # Build list of candidate, score pairs
@@ -72,7 +82,7 @@ class NaiveBayesRecommender(Recommender):
         # initialize the liked and nliked scores with the base probability
 
         # for each feature
-            # update scores by multiplying with conditional probability
+        # update scores by multiplying with conditional probability
 
         # Handle the case when scores go to zero.
 
@@ -100,8 +110,8 @@ class NaiveBayesRecommender(Recommender):
 # TODO: HOMEWORK 4
 # Helper class
 class NaiveBayesTable:
-    liked_cond_table = {}
-    nliked_cond_table = {}
+    liked_cond_table = defaultdict(dict)
+    nliked_cond_table = defaultdict(dict)
     liked_table = {}
     nliked_table = {}
     thresh = 0
@@ -110,26 +120,48 @@ class NaiveBayesTable:
 
     # TODO: HOMEWORK 4
     def __init__(self, thresh=2.9, alpha=0.01, beta=0.01):
+        self.thresh = thresh
+        self.alpha = alpha
+        self.beta = beta
+        return
 
     # TODO: HOMEWORK 4
     # Reset all the tables
     def reset(self):
+        self.liked_cond_table = defaultdict(dict)
+        self.nliked_cond_table = defaultdict(dict)
+        self.liked_table = {}
+        self.nliked_table = {}
+        return
 
     # TODO: HOMEWORK 4
     # Return the count for a feature for a user (either liked or ~liked)
     # Should be robust if the user or the feature are not currently in table: return 0 in these cases
     def user_feature_count(self, user, feature, liked=True):
-        return 0
+        print(type(user))
+        print(self.liked_cond_table[user][feature])
+        # try:
+        #     print(user, feature)
+        #     if liked:
+        #         return self.liked_cond_table[user][feature]
+        #     elif ~liked:
+        #         return self.nliked_cond_table[user][feature]
+        # except KeyError:
+        #     return 0
 
     # TODO: HOMEWORK 4
     # Sets the count for a feature for a user (either liked or ~liked)
     # Should be robust if the user or the feature are not currently in table. Create appropriate entry or entries
     def set_user_feature_count(self, user, feature, count, liked=True):
-
+        if liked:
+            self.liked_cond_table[user][feature] = count
+        elif ~liked:
+            self.nliked_cond_table[user][feature] = count
+        return
 
     def incr_user_feature_count(self, user, feature, liked=True):
         val = self.user_feature_count(user, feature, liked)
-        self.set_user_feature_count(user, feature, val+1, liked)
+        self.set_user_feature_count(user, feature, val + 1, liked)
 
     # TODO: HOMEWORK 4
     # Computes P(f|L) or P(f|~L) as the observed ratio of features and total likes/dislikes
@@ -141,17 +173,27 @@ class NaiveBayesTable:
     # Return the liked (disiked) count for a user (
     # Should be robust if the user is not currently in table: return 0 in this cases
     def user_count(self, user, liked=True):
-        return 0
+        try:
+            if liked:
+                return self.liked_table[user]
+            elif ~liked:
+                return self.nliked_table[user]
+        except KeyError:
+            return 0
 
     # TODO: HOMEWORK 4
     # Sets the liked/disliked count for a user
     # Should be robust if the user is not currently in table. Create appropriate entry
     def set_user_count(self, user, value, liked=True):
-
+        if liked:
+            self.liked_cond_table[user] = value
+        elif ~liked:
+            self.nliked_cond_table[user] = value
+        return
 
     def incr_user_count(self, user, liked=True):
         val = self.user_count(user, liked)
-        self.set_user_count(user, val+1, liked)
+        self.set_user_count(user, val + 1, liked)
 
     # TODO: HOMEWORK 4
     # Computes P(L) or P(~L) as the observed ratio of liked/dislike and total rated item count
@@ -162,11 +204,12 @@ class NaiveBayesTable:
     # TODO:HOMEWORK 4
     # Update the table to take into account one new rating
     def process_rating(self, user, rating, features):
-
         # Determine if liked or disliked
-
+        liked = False
+        if rating < self.thresh:
+            liked = True
         # Increment appropriate count for the user
-
+        self.incr_user_count(user, liked)
+        self.incr_user_feature_count(user, features, liked)
         # For each feature
-            # Increment appropriate feature count for the user
-
+        # Increment appropriate feature count for the user

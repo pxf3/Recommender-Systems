@@ -15,6 +15,7 @@ class test_NaiveBayes(unittest.TestCase):
     _features = None
 
     def setUp(self):
+        print("setUp================")
         self._features = pd.read_csv('test_features.csv')
         self._algo = NaiveBayesRecommender(self._features, thresh=2.9, alpha=0.01, beta=0.02)
 
@@ -25,12 +26,14 @@ class test_NaiveBayes(unittest.TestCase):
 
     # Test reset
     def test_reset(self):
+        print("test_reset================")
         nb_table = self._algo._nb_table
         nb_table.reset()
         self.assertEqual(0, nb_table.user_count(1, liked=True), "Reset did not work.")
 
     # Test handling for zero scores
     def test_zeros(self):
+        print("test_zeros================")
         # Set all of user 1's counts to zero
         nliked_cond_table1 = self._algo._nb_table.nliked_cond_table[1]
         for key in nliked_cond_table1.keys():
@@ -46,6 +49,7 @@ class test_NaiveBayes(unittest.TestCase):
     # User 1 liked 2 and disliked 2
     # User 3 liked 1 and disliked 2
     def test_liked_tables(self):
+        print("test_liked_tables================")
         nb_table = self._algo._nb_table
         self.assertEqual(2, nb_table.user_count(1, liked=True), "User 1 liked count incorrect")
         self.assertEqual(2, nb_table.user_count(1, liked=False), "User 1 disliked count incorrect")
@@ -56,6 +60,7 @@ class test_NaiveBayes(unittest.TestCase):
     # User 1 liked items with Feature D 2 times
     # User 1 disliked items with Feature J 1 time
     def test_cond_tables(self):
+        print("test_cond_tables================")
         nb_table = self._algo._nb_table
         self.assertEqual(2, nb_table.user_feature_count(1, 'D', liked=True),
                          "User 1 liked feature count D incorrect")
@@ -64,6 +69,7 @@ class test_NaiveBayes(unittest.TestCase):
 
     # Test liked and nliked probability calculation
     def test_liked_prob(self):
+        print("test_liked_prob================")
         nb_table = self._algo._nb_table
         self.assertAlmostEqual(0.5, nb_table.user_prob(1, liked=True), 5,
                                "User 1 liked probability incorrect")
@@ -78,6 +84,7 @@ class test_NaiveBayes(unittest.TestCase):
 
     # Test conditional probability calculations
     def test_cond_prob(self):
+        print("test_cond_prob================")
         nb_table = self._algo._nb_table
         # TODO: HOMEWORK 4. Put correct calculated value here
         self.assertAlmostEqual(0, nb_table.user_feature_prob(1, 'D', liked=True), 5,
@@ -87,12 +94,14 @@ class test_NaiveBayes(unittest.TestCase):
 
     # Test score User 3 Item 5
     def test_pred1(self):
+        print("test_pred1================")
         score = self._algo.score_item(3, 5)
         self.assertAlmostEqual(2.67090, score, 5,
                                'User 3 item 5 prediction incorrect')
 
     # Test score User 1 Item 5
     def test_pred2(self):
+        print("test_pred2================")
         score = self._algo.score_item(1, 5)
         # TODO: HOMEWORK 4. Put correct calculated value here
         self.assertAlmostEqual(0, score, 5,

@@ -34,13 +34,11 @@ class NaiveBayesRecommender(Recommender):
             user = rowR['user']
             item = rowR['item']
             rating = rowR['item']
-            print("processing: ", user)
+            # print("processing: ", user)
             # Get associated item features
-            for indexF, rowF in self._item_features.loc[self._item_features['item'] == item].iterrows():
-                feature = rowF['feature']
-                print("          processing: ", user, ", ", rating, ", ", feature)
-                # Update NBTable
-                self._nb_table.process_rating(user, rating, feature)
+            feature = self.get_features_list(item)
+            self._nb_table.process_rating(user, rating, feature)
+
 
     # TODO: HOMEWORK 4
     # Should return ordered data frame with items and score
@@ -73,8 +71,10 @@ class NaiveBayesRecommender(Recommender):
     # TODO: HOMEWORK 4
     # Helper function to return a list of features for an item from features data frame
     def get_features_list(self, item):
-
-        return []
+        features_list = []
+        for indexF, rowF in self._item_features.loc[self._item_features['item'] == item].iterrows():
+            features_list.append(rowF['feature'])
+        return features_list
 
     # TODO: HOMEWORK 4
     def score_item(self, user, item):
@@ -110,8 +110,8 @@ class NaiveBayesRecommender(Recommender):
 # TODO: HOMEWORK 4
 # Helper class
 class NaiveBayesTable:
-    liked_cond_table = defaultdict(dict)
-    nliked_cond_table = defaultdict(dict)
+    liked_cond_table = {}
+    nliked_cond_table = {}
     liked_table = {}
     nliked_table = {}
     thresh = 0
@@ -128,8 +128,8 @@ class NaiveBayesTable:
     # TODO: HOMEWORK 4
     # Reset all the tables
     def reset(self):
-        self.liked_cond_table = defaultdict(dict)
-        self.nliked_cond_table = defaultdict(dict)
+        self.liked_cond_table = {}
+        self.nliked_cond_table = {}
         self.liked_table = {}
         self.nliked_table = {}
         return
@@ -138,25 +138,32 @@ class NaiveBayesTable:
     # Return the count for a feature for a user (either liked or ~liked)
     # Should be robust if the user or the feature are not currently in table: return 0 in these cases
     def user_feature_count(self, user, feature, liked=True):
-        print(type(user))
-        print(self.liked_cond_table[user][feature])
-        # try:
-        #     print(user, feature)
-        #     if liked:
-        #         return self.liked_cond_table[user][feature]
-        #     elif ~liked:
-        #         return self.nliked_cond_table[user][feature]
-        # except KeyError:
-        #     return 0
+        # print(type(user))
+        # print(self.liked_cond_table[user][feature])
+        try:
+            if liked:
+                return self.liked_cond_table[user][feature]
+            elif ~liked:
+                return self.nliked_cond_table[user][feature]
+        except KeyError:
+            return 0
 
     # TODO: HOMEWORK 4
     # Sets the count for a feature for a user (either liked or ~liked)
     # Should be robust if the user or the feature are not currently in table. Create appropriate entry or entries
     def set_user_feature_count(self, user, feature, count, liked=True):
         if liked:
-            self.liked_cond_table[user][feature] = count
+            try:
+                self.liked_cond_table[user][feature] = count
+            except KeyError:
+                self.liked_cond_table[user] = {}
+                self.liked_cond_table[user][feature] = count
         elif ~liked:
-            self.nliked_cond_table[user][feature] = count
+            try:
+                self.nliked_cond_table[user][feature] = count
+            except KeyError:
+                self.nliked_cond_table[user] = {}
+                self.nliked_cond_table[user][feature] = count
         return
 
     def incr_user_feature_count(self, user, feature, liked=True):
@@ -186,9 +193,9 @@ class NaiveBayesTable:
     # Should be robust if the user is not currently in table. Create appropriate entry
     def set_user_count(self, user, value, liked=True):
         if liked:
-            self.liked_cond_table[user] = value
+            self.liked_table[user] = value
         elif ~liked:
-            self.nliked_cond_table[user] = value
+            self.nliked_table[user] = value
         return
 
     def incr_user_count(self, user, liked=True):
@@ -204,12 +211,14 @@ class NaiveBayesTable:
     # TODO:HOMEWORK 4
     # Update the table to take into account one new rating
     def process_rating(self, user, rating, features):
+        # print(user, ", ", rating, ", ", features)
         # Determine if liked or disliked
         liked = False
-        if rating < self.thresh:
+        if rating > self.thresh:
             liked = True
         # Increment appropriate count for the user
         self.incr_user_count(user, liked)
-        self.incr_user_feature_count(user, features, liked)
         # For each feature
-        # Increment appropriate feature count for the user
+        for feature in features:
+            # Increment appropriate feature count for the user
+            self.incr_user_feature_count(user, feature, liked)

@@ -5,4 +5,4 @@ import pandas as pd
 ratings = pd.read_csv('test.csv')
 ratings.columns = ['user', 'item', 'rating']
 
-print(ratings)
+print(2/0)

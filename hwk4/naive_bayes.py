@@ -1,5 +1,6 @@
 # Homework 4
-# INFO 4871/5871, Spring 2019
+# Yushuo Ruan
+# INFO 5871, Spring 2019
 # Robin Burke
 # University of Colorado, Boulder
 
@@ -9,6 +10,7 @@ from collections import defaultdict
 
 import numpy as np
 import pandas as pd
+import math
 
 
 class NaiveBayesRecommender(Recommender):
@@ -33,7 +35,7 @@ class NaiveBayesRecommender(Recommender):
         for indexR, rowR in ratings.iterrows():
             user = rowR['user']
             item = rowR['item']
-            rating = rowR['item']
+            rating = rowR['rating']
             # print("processing: ", user)
             # Get associated item features
             feature = self.get_features_list(item)
@@ -51,22 +53,27 @@ class NaiveBayesRecommender(Recommender):
             candidates = self.selector.candidates(user, ratings)
 
         # Initialize scores
+        scores = []
 
         # for each candidate
         for candidate in candidates:
-            return
+            scores.append(self.score_item(user, candidate))
             # Score the candidate for the user
 
             # Build list of candidate, score pairs
 
+
         # Turn result into data frame
+        data = {'item': candidates, 'score': scores}
+        df = pd.DataFrame(data, columns=['item', 'score'])
 
         # Retain n largest scoring rows (nlargest)
-
+        df = df.nlargest(n, 'score')
         # Sort by score (sort_values)
+        df = df.sort_values(by=['score'], ascending=False)
 
         # return data frame
-        return pd.DataFrame()
+        return df
 
     # TODO: HOMEWORK 4
     # Helper function to return a list of features for an item from features data frame
@@ -79,17 +86,35 @@ class NaiveBayesRecommender(Recommender):
     # TODO: HOMEWORK 4
     def score_item(self, user, item):
         # get the features
+        features = self.get_features_list(item)
         # initialize the liked and nliked scores with the base probability
+        baseP = self._nb_table.user_prob(user, True)
+        baseNP = self._nb_table.user_prob(user, False)
 
+        likeP = 1
+        nlikeP = 1
         # for each feature
+        for feature in features:
+            likeP = likeP * self._nb_table.user_feature_prob(user, feature, True)
+            nlikeP = nlikeP * self._nb_table.user_feature_prob(user, feature, False)
         # update scores by multiplying with conditional probability
+        likeP = likeP * baseP
+        nlikeP = nlikeP * baseNP
 
-        # Handle the case when scores go to zero.
+        try:
+            ratio = likeP/nlikeP
+        except ZeroDivisionError:
+            # Handle the case when scores go to zero.
+            return 0
 
         # Compute log-likelihood
-        # Handle zero again
+        try:
+            LL=math.log(ratio, math.e)
+        except ValueError:
+            # Handle zero again
+            return 0
         # Return result
-        return 0
+        return LL
 
     # DO NOT ALTER
     def get_params(self, deep=True):
@@ -174,7 +199,9 @@ class NaiveBayesTable:
     # Computes P(f|L) or P(f|~L) as the observed ratio of features and total likes/dislikes
     # Should include smooting with beta value
     def user_feature_prob(self, user, feature, liked=True):
-        return 0.5
+        return (self.user_feature_count(user, feature, liked) + self.beta) / \
+               (self.user_count(user, liked) + 2 * self.beta)
+
 
     # TODO: HOMEWORK 4
     # Return the liked (disiked) count for a user (
@@ -206,7 +233,9 @@ class NaiveBayesTable:
     # Computes P(L) or P(~L) as the observed ratio of liked/dislike and total rated item count
     # Should include smooting with alpha value
     def user_prob(self, user, liked=True):
-        return 0.5
+        #print(user, ", ", self.user_count(user, False))
+        return (self.user_count(user, liked)+self.alpha) / \
+               (self.user_count(user, True)+self.user_count(user, False)+2*self.alpha)
 
     # TODO:HOMEWORK 4
     # Update the table to take into account one new rating
@@ -218,6 +247,7 @@ class NaiveBayesTable:
             liked = True
         # Increment appropriate count for the user
         self.incr_user_count(user, liked)
+        #print(user, ",", rating, ",", liked)
         # For each feature
         for feature in features:
             # Increment appropriate feature count for the user
